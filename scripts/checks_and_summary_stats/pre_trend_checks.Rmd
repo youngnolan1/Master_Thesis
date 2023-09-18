@@ -1,0 +1,91 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+# author: NYZ
+# description: checks the parallel pre-trends assumption.
+---
+
+Libraries
+```{r}
+library(tidyverse)
+library(stargazer)
+```
+
+
+Data
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+pre_test_data <- read.csv("ruralmaster.csv")
+```
+
+
+Clean pre_test_data
+```{r}
+pre_test_data <- pre_test_data %>% 
+  filter(year2020 != 1) %>% 
+  mutate(year2016 = case_when(year_cont == 2016 ~ 1,
+                              year_cont != 2016 ~ 0)) %>% 
+  mutate(pre_did = binary_treat*year2016)
+```
+
+
+Run pre-diff-in-diff reg
+```{r}
+pre_did_reg <- lm(ill_2wks ~ year2016 + binary_treat + pre_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+                  data = pre_test_data)
+```
+
+
+Regression results
+```{r, results='asis'}
+stargazer(pre_did_reg, type = "html")
+```
+
+
+```{r}
+pre_did_reg <- lm(health_consump ~ year2016 + binary_treat + pre_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+                  data = pre_test_data)
+```
+
+
+```{r, results='asis'}
+stargazer(pre_did_reg, type = "html")
+```
+
+
+
+```{r}
+pre_did_reg <- lm(outpatient_consump ~ year2016 + binary_treat + pre_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+                  data = pre_test_data)
+```
+
+
+```{r, results='asis'}
+stargazer(pre_did_reg, type = "html")
+```
+
+
+
+```{r}
+pre_did_reg <- lm(spending_4wks_illnesses ~ year2016 + binary_treat + pre_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+                  data = pre_test_data)
+```
+
+
+```{r, results='asis'}
+stargazer(pre_did_reg, type = "html")
+```
+
+
+
+```{r}
+pre_did_reg <- lm(perception_healthcare ~ year2016 + binary_treat + pre_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+                  data = pre_test_data)
+```
+
+
+```{r, results='asis'}
+stargazer(pre_did_reg, type = "html")
+```

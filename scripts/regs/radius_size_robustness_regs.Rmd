@@ -1,0 +1,166 @@
+---
+title: "radius_size_robustness_regs"
+output:
+  html_document:
+    df_print: paged
+# author: NYZ
+# description: tests robustness of results to changing radius size used to
+#              identify treatment households. Produces tex results tables.
+---
+
+Libraries
+```{r}
+library(tidyverse)
+library(stargazer)
+```
+
+
+Data
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+ruralmaster <- read.csv("ruralmaster.csv")
+```
+
+
+
+3km radius
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat_nann_3km
+
+km3_hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat_nann_3km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km3_ill_reg <- lm(ill_2wks ~ year2020 + binary_treat_nann_3km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km3_spend_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat_nann_3km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+
+km3_perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat_nann_3km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(km3_hosp_reg, km3_ill_reg, km3_spend_reg, km3_perception_reg,
+          title = "Differences-in-Differences - 3km Radius",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "km3_table.tex")
+```
+
+4km radius
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat_nann_4km
+
+km4_hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat_nann_4km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km4_ill_reg <- lm(ill_2wks ~ year2020 + binary_treat_nann_4km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km4_spend_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat_nann_4km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+
+km4_perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat_nann_4km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(km4_hosp_reg, km4_ill_reg, km4_spend_reg, km4_perception_reg,
+          title = "Differences-in-Differences - 4km Radius",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "km4_table.tex")
+```
+
+
+6km radius
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat_nann_6km
+
+km6_hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat_nann_6km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km6_ill_reg <- lm(ill_2wks ~ year2020 + binary_treat_nann_6km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km6_spend_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat_nann_6km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+
+km6_perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat_nann_6km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+```
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(km6_hosp_reg, km6_ill_reg, km6_spend_reg, km6_perception_reg,
+          title = "Differences-in-Differences - 6km Radius",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "km6_table.tex")
+```
+
+
+7km radius
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat_nann_7km
+
+km7_hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat_nann_7km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km7_ill_reg <- lm(ill_2wks ~ year2020 + binary_treat_nann_7km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km7_spend_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat_nann_7km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+
+km7_perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat_nann_7km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(km7_hosp_reg, km7_ill_reg, km7_spend_reg, km7_perception_reg,
+          title = "Differences-in-Differences - 7km Radius",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "km7_table.tex")
+```
+
+
+10km radius
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat_nann_10km
+
+km10_hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat_nann_10km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km10_ill_reg <- lm(ill_2wks ~ year2020 + binary_treat_nann_10km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+
+km10_spend_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat_nann_10km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+
+km10_perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat_nann_10km + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(km10_hosp_reg, km10_ill_reg, km10_spend_reg, km10_perception_reg,
+          title = "Differences-in-Differences - 10km Radius",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "km10_table.tex")
+```

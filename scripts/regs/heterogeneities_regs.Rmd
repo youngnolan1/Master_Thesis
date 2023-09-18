@@ -1,0 +1,201 @@
+---
+title: "heterogeneities_regs"
+output:
+  html_document:
+    df_print: paged
+# author: NYZ
+# description: performs heterogeneity analysis and produces tex results tables.
+---
+
+Set up
+```{r}
+library(tidyverse)
+library(estimatr)
+library(readstata13)
+library(stargazer)
+
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+ruralmaster <- read.csv("ruralmaster.csv")
+ruralmaster_no_rnd3 <- read.csv("ruralmaster_no_rnd3.csv")
+```
+
+
+---------------------------  HH-SPECIFIC CHARACTERISTICS  ---------------------------
+
+Religion variable
+```{r}
+ruralmaster <- ruralmaster %>% 
+  mutate(religion = case_when(religion =="islam" ~ 0,
+                              religion == "christianity" ~ 1))
+```
+
+Triple diffs
+```{r}
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat
+
+religion_ill_triple <- lm(ill_2wks ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + religion + religion*year2020 + religion*binary_treat + religion*year2020*binary_treat,
+             data = ruralmaster)
+
+distpop_spend_triple <- lm(spending_4wks_illnesses ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + dist_popcenter + dist_popcenter*year2020 + dist_popcenter*binary_treat + dist_popcenter*year2020*binary_treat,
+             data = ruralmaster)
+
+distpop_percep_triple <- lm(perception_healthcare ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + dist_popcenter + dist_popcenter*year2020 + dist_popcenter*binary_treat + dist_popcenter*year2020*binary_treat,
+             data = ruralmaster)
+
+nonagri_health_triple <- lm(health_consump ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + own_nonagri_business + own_nonagri_business*year2020 + own_nonagri_business*binary_treat + own_nonagri_business*year2020*binary_treat,
+             data = ruralmaster)
+
+nonagri_outpatient_triple <- lm(outpatient_consump ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + own_nonagri_business + own_nonagri_business*year2020 + own_nonagri_business*binary_treat + own_nonagri_business*year2020*binary_treat,
+             data = ruralmaster)
+
+nonagri_spend_triple <- lm(spending_4wks_illnesses ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + own_nonagri_business + own_nonagri_business*year2020 + own_nonagri_business*binary_treat + own_nonagri_business*year2020*binary_treat,
+             data = ruralmaster)
+
+hhsize_spend_triple <- lm(spending_4wks_illnesses ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size + hh_size*year2020 + hh_size*binary_treat + hh_size*year2020*binary_treat,
+             data = ruralmaster)
+```
+
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(nonagri_spend_triple, nonagri_health_triple, nonagri_outpatient_triple,
+          omit = "year2020:binary_treat",
+          title = "Heterogeneity Analysis - Ownership of Non-Agricultural Business",
+          dep.var.labels = c("Spending on Illnesses", "Health Consumption", "Outpatient Consumption"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size", "Non-Agri Business", "Non-Agri*Post", "Non-Agri*Treated", "Triple Diff"),
+          out = "nonagri_heterogen_table.tex")
+
+################################################################################
+
+stargazer(religion_ill_triple,
+          omit = "year2020:binary_treat",
+          title = "Heterogeneity Analysis - Religion",
+          dep.var.labels = "Illness",
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size", "Religion", "Religion*Post", "Religion*Treated", "Triple Diff"),
+          out = "religion_heterogen_table.tex")
+
+stargazer(distpop_spend_triple, distpop_percep_triple,
+          omit = "year2020:binary_treat",
+          title = "Heterogeneity Analysis - Distance to Population Center",
+          dep.var.labels = c("Spending on Illnesses", "Perception Healthcare"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size", "DistPopCenter", "DistPopCenter*Post", "DistPopCenter*Treated", "Triple Diff"),
+          out = "distpop_heterogen_table.tex")
+
+stargazer(hhsize_spend_triple,
+          omit = "year2020:binary_treat",
+          title = "Heterogeneity Analysis - Household Size",
+          dep.var.labels = "Spending on Illnesses",
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size", "HH Size*Post", "HH Size*Treated", "Triple Diff"),
+          out = "hhsize_heterogen_table.tex")
+
+```
+
+
+--------------------------- SITE-SPECIFIC CHARACTERISTICS ---------------------------
+
+Bathing facilities
+```{r}
+ruralmaster_no_rnd3 <- ruralmaster_no_rnd3 %>% 
+  filter(syear %in% c("2016", "2017", "2019", "2020"))
+
+ruralmaster_no_rnd3 <- ruralmaster_no_rnd3 %>% 
+  mutate(site_bathing_treat = case_when(site_bathing_facilities == 0 ~ 0,
+                                           site_bathing_facilities == 1 ~ 0,
+                                           site_bathing_facilities == 2 ~ 0,
+                                           site_bathing_facilities == 3 ~ 0,
+                                           site_bathing_facilities == 4 ~ 1,
+                                           site_bathing_facilities == 5 ~ 1,
+                                           site_bathing_facilities %in% NA ~ 0
+                                           ))
+
+ruralmaster_no_rnd3$site_bathing_did <- ruralmaster_no_rnd3$year2020 * ruralmaster_no_rnd3$site_bathing_treat
+```
+
+
+Bathing facilities - perception healthcare
+```{r}
+bathing_percep_reg <- lm(perception_healthcare ~ year2020 + site_bathing_treat + site_bathing_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump, data = ruralmaster_no_rnd3)
+
+summary(bathing_percep_reg)
+```
+
+
+Bathing facilities - ill 2 weeks
+```{r}
+bathing_ill_reg <- lm(ill_2wks ~ year2020 + site_bathing_treat + site_bathing_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump, data = ruralmaster_no_rnd3)
+
+summary(bathing_ill_reg)
+```
+
+--------------------------------------------------------------
+
+Soap
+```{r}
+ruralmaster_no_rnd3 <- ruralmaster_no_rnd3 %>% 
+  mutate(site_soap_treat = case_when(site_enough_soap == 0 ~ 0,
+                                           site_enough_soap == 1 ~ 0,
+                                           site_enough_soap == 2 ~ 0,
+                                           site_enough_soap == 3 ~ 0,
+                                           site_enough_soap == 4 ~ 1,
+                                           site_enough_soap == 5 ~ 1,
+                                           site_enough_soap %in% NA ~ 0
+                                           ))
+
+ruralmaster_no_rnd3$site_soap_did <- ruralmaster_no_rnd3$year2020 * ruralmaster_no_rnd3$site_soap_treat
+```
+
+
+Soap - ill 2 weeks
+```{r}
+soap_ill_reg <- lm(ill_2wks ~ year2020 + site_soap_treat + site_soap_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump, data = ruralmaster_no_rnd3)
+```
+
+Soap - perception
+```{r}
+soap_perception_reg <- lm(perception_healthcare ~ year2020 + site_soap_treat + site_soap_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump, data = ruralmaster_no_rnd3)
+```
+
+
+---------------------------------------------------------------------
+
+Distance to health facility
+```{r}
+ruralmaster_no_rnd3 <- ruralmaster_no_rnd3 %>% 
+  mutate(site_distancehealth_treat = case_when(site_distance_health_facility == 1 ~ 0,
+                                           site_distance_health_facility == 2 ~ 1,
+                                           site_distance_health_facility == 3 ~ 1,
+                                           site_distance_health_facility %in% NA ~ 0
+                                           ))
+
+ruralmaster_no_rnd3$site_distancehealth_did <- ruralmaster_no_rnd3$year2020 * ruralmaster_no_rnd3$site_distancehealth_treat
+```
+
+Distance to health facility - ill 2 weeks
+```{r}
+distance_ill_reg <- lm(ill_2wks ~ year2020 + site_distancehealth_treat + site_distancehealth_did + annual_mean_temp + annual_precipitation + floods + real_annual_consump, data = ruralmaster_no_rnd3)
+
+summary(distance_ill_reg)
+```
+
+
+
+
+-------------------------------------------------------------------------------
+
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+
+stargazer(distance_ill_reg, soap_ill_reg, bathing_ill_reg,
+          title = "Heterogeneity Analysis - Re-defining Treatment by Site Conditions",
+          dep.var.labels = c("Illness"),
+          covariate.labels = c("Post", "Distance Treated", "Distance Diff-in-Diff", "Soap Treated", "Soap Diff-in-Diff", "Bathing Treated", "Bathing Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump"),
+          out = "site_heterogen_table.tex"
+          )
+```
+
+
+
+
+

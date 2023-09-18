@@ -1,0 +1,164 @@
+---
+title: "site_radius_mapping"
+output: html_notebook
+# author: NYZ
+# description: produces a map of Malawi showing radius around IDP sites and 
+#              households.
+---
+
+Set working directory
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+```
+
+
+Import libraries
+```{r}
+library(tidyverse)
+library(readxl)
+library(readstata13)
+library(ggmap)
+library(sf)
+library(mapview)
+library(leaflet)
+```
+
+
+Import data
+```{r}
+sites <- read.csv("site_full.csv")
+
+hh_geo_ihs4 <- read.dta13("householdgeovariables_ihs4.dta")
+hh_geo_ihs5 <- read.dta13("householdgeovariables_ihs5.dta")
+
+hh_consumpagg4 <- read.dta13("ihs4_consumption_aggregate.dta")
+hh_consumpagg5 <- read.dta13("ihs5_consumption_aggregate.dta")
+```
+
+
+Clean site data
+```{r}
+sites <- sites[,-1]
+```
+
+
+Visualize refugee camps on map
+```{r}
+site_rnd2 <- st_as_sf(site_rnd2, coords = c("lon", "lat"), crs = 4326)
+
+mapview(site_rnd2)
+```
+
+
+Clean hh geovariables data
+```{r}
+hh_geo_ihs4 <- hh_geo_ihs4[,c(1, 3, 4)]
+hh_geo_ihs5 <- hh_geo_ihs5[,c(1, 43, 44)]
+
+
+hh_geo_ihs4 <- hh_geo_ihs4 %>% 
+  rename("lon" = "lon_modified") %>% 
+  rename("lat" = "lat_modified")
+
+hh_geo_ihs5 <- hh_geo_ihs5 %>% 
+  rename("lon" = "ea_lon_mod") %>% 
+  rename("lat" = "ea_lat_mod")
+
+hh_geo_ihs5 <- na.omit(hh_geo_ihs5)
+```
+
+Visualize households IHS4 on map
+```{r}
+locations_hh_ihs4 <- st_as_sf(hh_geo_ihs4, coords = c("lon", "lat"), crs = 4326)
+mapview(locations_hh_ihs4)
+```
+
+
+Visualize households IHS5 on map
+```{r}
+locations_hh_ihs5 <- st_as_sf(hh_geo_ihs5, coords = c("lon", "lat"), crs = 4326)
+
+mapview(locations_hh_ihs5)
+```
+
+
+IHS5 circles 
+```{r}
+#Put data in map format
+sites_circles <- sites %>%  
+  mutate(lon = as.numeric(lon)) %>% 
+  mutate(lat = as.numeric(lat))
+
+
+hh_geo_ihs5 <- left_join(hh_geo_ihs5, hh_consumpagg5, by = "case_id")
+
+ihs5_districts <- c("Chikwawa", "Phalombe", "Nsanje", "Zomba")
+
+hh_geo_ihs5 <- hh_geo_ihs5 %>% 
+  filter(district %in% ihs5_districts) %>% 
+  select(case_id, lat, lon) %>% 
+  mutate(lat = as.numeric(lat)) %>% 
+  mutate(lon = as.numeric(lon))
+  
+
+#Make map
+houseicon <- makeIcon("houseicon.png")
+
+map <- leaflet(sites_circles) %>%
+  addTiles() %>% 
+  addCircles(lng = ~lon,
+             lat = ~lat,
+             radius = 5000,
+             fillColor = "transparent",
+             weight = 3) %>% 
+  addMarkers(lng = ~lon,
+                    lat = ~lat,
+                    data = hh_geo_ihs5,
+                    icon = list(iconUrl = "houseicon.png", 
+                                iconSize = c(10, 10))
+             ) %>% 
+  addMarkers(lng = ~lon,
+             lat = ~lat,
+             data = sites_circles,
+             icon = list(iconUrl = "sheltericon.png",
+                         iconSize = c(8,8)))
+
+map
+```
+
+
+IHS4 circles 
+```{r}
+#Put data in map format
+hh_geo_ihs4 <- left_join(hh_geo_ihs4, ihs4_consump_agg, by = "case_id")
+
+ihs4_districts <- c("Chikwawa", "Phalombe", "Nsanje", "Zomba City", "Zomba Non-City")
+
+hh_geo_ihs4 <- hh_geo_ihs4 %>% 
+  filter(district %in% ihs4_districts) %>% 
+  select(case_id, lat, lon) %>% 
+  mutate(lat = as.numeric(lat)) %>% 
+  mutate(lon = as.numeric(lon))
+  
+
+#Make map
+leaflet(sites_circles) %>%
+  addTiles() %>% 
+  addCircles(lng = ~lon,
+             lat = ~lat,
+             radius = 5000,
+             fillColor = "transparent") %>% 
+  addMarkers(lng = ~lon,
+                    lat = ~lat,
+                    data = hh_geo_ihs4,
+                    icon = list(iconUrl = "houseicon.png", 
+                                iconSize = c(10, 10))
+             ) %>% 
+  addMarkers(lng = ~lon,
+             lat = ~lat,
+             data = sites_circles,
+             icon = list(iconUrl = "sheltericon.png",
+                         iconSize = c(10,10)))
+```
+
+

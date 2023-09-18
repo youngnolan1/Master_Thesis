@@ -1,0 +1,77 @@
+---
+title: "did_regs"
+output:
+  html_document:
+    df_print: paged
+# author: NYZ
+# description: performs the main diff-in-diff regressions and outputs tex table
+#             (run last code chunk for each of the vars above).
+---
+
+```{r}
+#----------------DIFF-IN-DIFF REGRESSIONS------------------
+#Libraries
+library(tidyverse)
+library(estimatr)
+library(readstata13)
+library(stargazer)
+
+
+#Load data
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+ruralmaster <- read.csv("ruralmaster.csv")
+```
+
+```{r}
+#Define diff-in-diff coefficient
+ruralmaster$did <- ruralmaster$year2020 * ruralmaster$binary_treat
+```
+
+```{r}
+#Hosp_12mnths
+hosp_reg <- lm(hosp_12mnths ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+               data = ruralmaster)
+```
+
+```{r, results='asis'}
+stargazer(hosp_reg, type = "html")
+```
+
+```{r}
+#Ill_2wks
+ill_reg <- lm(ill_2wks ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+             data = ruralmaster)
+```
+
+```{r, results='asis'}
+stargazer(ill_reg, type = "html")
+```
+
+
+```{r}
+spending_reg <- lm(spending_4wks_illnesses ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+```{r, results='asis'}
+stargazer(spending_reg, type = "html")
+```
+
+```{r}
+perception_reg <- lm(perception_healthcare ~ year2020 + binary_treat + did + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size, 
+             data = ruralmaster)
+```
+
+```{r, results='asis'}
+stargazer(perception_reg, type = "html")
+```
+
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output/tex_tables")
+stargazer(hosp_reg, ill_reg, spending_reg,
+          title = "Differences-in-Differences Results",
+          dep.var.labels = c("Hospitalization", "Illness", "Spending on Illnesses"),
+          covariate.labels = c("Post", "Treated", "Diff-in-Diff", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "main_did_table.tex")
+```

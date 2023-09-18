@@ -1,0 +1,99 @@
+---
+title: "linear_regs"
+output:
+  html_document:
+    df_print: paged
+# author: NYZ
+# description: performs linear regressions using distance as main IV and 
+#              produces tex results tables.
+---
+
+```{r}
+#Libraries
+library(tidyverse)
+library(estimatr)
+library(stargazer)
+```
+
+```{r}
+#Run distance linear regressions
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/processed_data")
+distance_master <- read.csv("distance_master.csv")
+distance_hygiene <- read.csv("distance_hygiene.csv")
+```
+
+```{r}
+distance_spend_reg <- lm(spending_4wks_illnesses ~ distance_to_nearest + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+                   data = distance_master)
+```
+
+
+```{r, results='asis'}
+stargazer(distance_spend_reg, type = "html")
+```
+
+
+```{r}
+distance_outpatient_reg <- lm(outpatient_consump ~ distance_to_nearest + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+                   data = distance_master)
+```
+
+```{r, results='asis'}
+stargazer(distance_outpatient_reg, type = "html")
+```
+
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+stargazer(distance_spend_reg, distance_outpatient_reg,
+          title = "Distance to Site - Linear Regression Results",
+          dep.var.labels = c("Spending on Illnesses", "Outpatient Consumption"),
+          covariate.labels = c("Distance", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "distance_table.tex")
+```
+
+
+--------CONTINUOUS TREATMENT (NUMBER OF SITES) LINEAR REGRESSIONS--------
+
+
+```{r}
+#Health consumption
+continuous_healthconsump_reg <- lm(health_consump ~ continuous_treat + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+                     data = distance_master)
+```
+
+```{r, results='asis'}
+stargazer(continuous_healthconsump_reg, type = "html")
+```
+
+
+```{r}
+#Spending in last 4 weeks on illnesses
+continuous_spend_reg <- lm(spending_4wks_illnesses ~ continuous_treat + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+                     data = distance_master)
+```
+
+```{r, results='asis'}
+stargazer(continuous_spend_reg, type = "html")
+```
+
+```{r}
+#Outpatient consumption
+continuous_outpatient_reg <- lm(outpatient_consump ~ continuous_treat + annual_mean_temp + annual_precipitation + floods + real_annual_consump + hh_size,
+                     data = distance_master)
+```
+
+```{r, results='asis'}
+stargazer(continuous_outpatient_reg, type = "html")
+```
+
+
+Continuous mega table
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/output")
+stargazer(continuous_spend_reg, continuous_healthconsump_reg, continuous_outpatient_reg,
+          title = "Continuous Treatment (Number of Site Radiuses) - Linear Regression Results",
+          dep.var.labels = c("Spending on Illnesses", "Health consumption", "Outpatient Consumption"),
+          covariate.labels = c("Continuous Treatment", "Annual Mean Temp", "Annual Mean Precip", "Floods", "Real Annual Consump", "HH Size"),
+          out = "number_of_sites_table.tex")
+```
+

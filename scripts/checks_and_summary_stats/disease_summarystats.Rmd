@@ -1,0 +1,310 @@
+---
+title: "disease_summarystats"
+output: html_notebook
+# author: NYZ
+# description: computes summary statistics for vars of interest. Yields summary
+#              tables.
+---
+
+Set working directory
+```{r}
+setwd("C:/Users/young/OneDrive/Documents/MASTERPROJECT/data/raw_data")
+```
+
+Import libraries
+```{r}
+library(tidyverse)
+library(readstata13)
+```
+
+
+Import data
+```{r}
+#IHS4
+ihs4_mod_d <- read.dta13("IHS4_HH_MOD_D.dta")
+ihs4_mod_w <- read.dta13("IHS4_HH_MOD_W.dta")
+ihs4_consump_agg <- read.dta13("ihs4_consumption_aggregate.dta")
+
+#IHS5
+ihs5_mod_d <- read.dta13("IHS5_HH_MOD_D.dta")
+ihs5_mod_w <- read.dta13("IHS5_HH_MOD_W.dta")
+ihs5_consump_agg <- read.dta13("ihs5_consumption_aggregate.dta")
+```
+
+
+Subset for variables of interest
+```{r}
+#Mod_D data
+mod_d_vars <- c("case_id", "hh_d04", "hh_d05a", "hh_d05b")
+ihs4_mod_d <- ihs4_mod_d[,mod_d_vars]
+ihs5_mod_d <- ihs5_mod_d[,mod_d_vars]
+
+
+#Mod_W data
+mod_w_vars <- c("case_id", "hh_w01", "hh_w06a", "hh_w09", "hh_w11a", "hh_w11b",
+                "hh_w12a", "hh_w13")
+
+ihs4_mod_w <- ihs4_mod_w[,mod_w_vars]
+ihs5_mod_w <- ihs5_mod_w[,mod_w_vars]
+
+#Consump_agg data
+consump_agg_vars <- c("case_id", "region", "district", "area", "urban", "sdate",
+                      "smonth", "syear", "hhsize", "rexp_cat06", "rexp_cat061", 
+                      "rexp_cat062", "rexp_cat063")
+
+ihs4_consump_agg <- ihs4_consump_agg[,consump_agg_vars]
+ihs5_consump_agg <- ihs5_consump_agg[,consump_agg_vars]
+```
+
+Merge data
+```{r}
+ihs4_master <- ihs4_mod_d %>% 
+  left_join(ihs4_mod_w, by = "case_id") %>% 
+  left_join(ihs4_consump_agg, by = "case_id")
+
+ihs5_master <- ihs5_mod_d %>% 
+  left_join(ihs5_mod_w, by = "case_id") %>% 
+  left_join(ihs5_consump_agg, by = "case_id")
+```
+
+Rename columns
+```{r}
+ihs4_master <- ihs4_master %>% 
+  rename(c("ill_injury_2wks" = "hh_d04")) %>% 
+  rename(c("ill_injury1" = "hh_d05a")) %>% 
+  rename(c("ill_injury2" = "hh_d05b")) %>% 
+  rename(c("any_member_die_2yrs" = "hh_w01")) %>% 
+  rename(c("age_at_death" = "hh_w06a")) %>%
+  rename(c("cause_of_death" = "hh_w09")) %>%
+  rename(c("illness_cause1" = "hh_w11a")) %>%
+  rename(c("illness_cause2" = "hh_w11b")) %>%
+  rename(c("how_long_suffering_illness" = "hh_w12a")) %>%
+  rename(c("cause_of_death_diagnosis" = "hh_w13")) %>%
+  rename(c("health_consump" = "rexp_cat06")) %>%
+  rename(c("drugs_consump" = "rexp_cat061")) %>%
+  rename(c("outpatient_consump" = "rexp_cat062")) %>%
+  rename(c("hospitalization_consump" = "rexp_cat063"))
+
+ihs5_master <- ihs5_master %>% 
+  rename(c("ill_injury_2wks" = "hh_d04")) %>% 
+  rename(c("ill_injury1" = "hh_d05a")) %>% 
+  rename(c("ill_injury2" = "hh_d05b")) %>%
+  rename(c("any_member_die_2yrs" = "hh_w01")) %>% 
+  rename(c("age_at_death" = "hh_w06a")) %>%
+  rename(c("cause_of_death" = "hh_w09")) %>%
+  rename(c("illness_cause1" = "hh_w11a")) %>%
+  rename(c("illness_cause2" = "hh_w11b")) %>%
+  rename(c("how_long_suffering_illness" = "hh_w12a")) %>%
+  rename(c("cause_of_death_diagnosis" = "hh_w13")) %>%
+  rename(c("health_consump" = "rexp_cat06")) %>%
+  rename(c("drugs_consump" = "rexp_cat061")) %>%
+  rename(c("outpatient_consump" = "rexp_cat062")) %>%
+  rename(c("hospitalization_consump" = "rexp_cat063"))
+
+ihs5_master <- ihs5_master %>%
+    mutate(district = recode(district, Zomba =  'Zomba Non-City' ))
+```
+
+
+--------------------------------------------------------------------------------
+SUMMARY STATISTICS
+
+Illness summary stats
+```{r}
+#IHS4
+mod_d_ill4 <- ihs4_master %>% 
+  count(region, district)
+
+ill_injury_exclude4 <- c("fracture", "wound", "pregnancy",
+                        "DENTAL PROBLEM", "burn")
+
+mod_d_ill41 <- ihs4_master %>% 
+  filter(ill_injury_2wks == "yes") %>% 
+  filter(!(ill_injury1 %in% ill_injury_exclude4)) %>% 
+  count(region, district)
+
+mod_d_ill41 <- mod_d_ill41 %>% 
+  rename("ill" = "n")
+
+mod_d_ill41 <- mod_d_ill4 %>% 
+  left_join(mod_d_ill41, by = "district")
+
+mod_d_ill4 <- mod_d_ill41 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  rename("num_hh" = "n") %>% 
+  mutate("ihs4_proportion_ill" = ill/num_hh)
+
+mod_d_ill4 <- mod_d_ill4[,c(3, 1, 2, 4, 5)]
+
+
+#IHS5
+mod_d_ill5 <- ihs5_master %>% 
+  count(region, district)
+
+ill_injury_exclude5 <- c(21, 23, 24, 25, 26, 27, 28)
+
+mod_d_ill51 <- ihs5_master %>% 
+  filter(ill_injury_2wks == "YES") %>% 
+  filter(!(ill_injury1 %in% ill_injury_exclude5)) %>% 
+  count(region, district)
+
+mod_d_ill51 <- mod_d_ill51 %>% 
+  rename("ill" = "n")
+
+mod_d_ill51 <- mod_d_ill5 %>% 
+  left_join(mod_d_ill51, by = "district")
+
+mod_d_ill5 <- mod_d_ill51 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  rename("num_hh" = "n") %>% 
+  mutate("ihs5_proportion_ill" = ill/num_hh)
+
+mod_d_ill5 <- mod_d_ill5[,c(3, 1, 2, 4, 5)]
+
+#Merge to compare
+mod_d_master <- mod_d_ill4 %>% 
+  left_join(mod_d_ill5, by = c("region", "district")) %>% 
+  select(c(region, district, ihs4_proportion_ill, ihs5_proportion_ill))
+```
+
+
+Specific malaria, tuberculosis, STD summary stats
+```{r}
+#IHS4
+mod_d_ill4 <- ihs4_master %>% 
+  count(region, district)
+
+ill_injury_include <- c("FEVER, MALARIA", "diarrhea",
+                        "flu", "tb", "SEXUALLY TRANSMITTED DISEASE",
+                        "PAIN WHEN PASSING URINE")
+
+mod_d_ill41 <- ihs4_master %>% 
+  filter(ill_injury1 %in% ill_injury_include) %>% 
+  count(region, district)
+
+mod_d_ill41 <- mod_d_ill41 %>% 
+  rename("ill" = "n")
+
+mod_d_ill41 <- mod_d_ill4 %>% 
+  left_join(mod_d_ill41, by = "district")
+
+mod_d_ill4 <- mod_d_ill41 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  rename("num_hh" = "n") %>% 
+  mutate("ihs4_proportion_specific_ill" = ill/num_hh)
+
+mod_d_ill4 <- mod_d_ill4[,c(3, 1, 2, 4, 5)]
+
+
+#IHS5
+mod_d_ill5 <- ihs5_master %>% 
+  count(region, district)
+
+#More symptoms/types of illnesses in this survey year - address this
+ill_injury_include5 <- c(1, 2, 4, 8, 10, 19, 22, 23, 30)
+
+mod_d_ill51 <- ihs5_master %>% 
+  filter(ill_injury1 %in% ill_injury_include5) %>% 
+  count(region, district)
+
+mod_d_ill51 <- mod_d_ill51 %>% 
+  rename("ill" = "n")
+
+mod_d_ill51 <- mod_d_ill5 %>% 
+  left_join(mod_d_ill51, by = "district") %>% 
+  rename("num_hh" = n)
+
+mod_d_ill5 <- mod_d_ill51 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  mutate("ihs5_proportion_specific_ill" = ill/num_hh)
+
+mod_d_ill5 <- mod_d_ill5[,c(3, 1, 2, 4, 5)]
+
+#Merge to compare
+mod_d_specific_master <- mod_d_ill4 %>% 
+  left_join(mod_d_ill5, by = c("region", "district")) %>% 
+  select(c(region, district, ihs4_proportion_specific_ill, ihs5_proportion_specific_ill))
+```
+
+
+
+Mental health summary stats
+```{r}
+mental_ihs4 <- ihs4_master %>% 
+  select(case_id, region, district, ill_injury1) %>% 
+  filter(ill_injury1 == "MENTAL DISORDER")
+
+```
+
+
+Mortality summary stats
+```{r}
+#IHS4 - proportion of deaths from illness by region
+num_deaths4 <- ihs4_master %>% 
+  count(region, district)
+
+num_deaths41 <- ihs4_master %>% 
+  filter(any_member_die_2yrs == "yes") %>% 
+  filter(cause_of_death == "illness") %>% 
+  count(region, district)
+
+num_deaths41 <- num_deaths41 %>% 
+  rename("deaths" = "n")
+
+num_deaths4 <- num_deaths4 %>% 
+  left_join(num_deaths41, by = "district")
+
+num_deaths4 <- num_deaths4 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  rename("num_hh" = "n") %>% 
+  mutate("proportion_deaths" = deaths/num_hh)
+
+num_deaths4 <- num_deaths4[,c(3, 1, 2, 4, 5)]
+
+
+
+#IHS5 - proportion of deaths from illness by region
+num_deaths5 <- ihs5_master %>% 
+  count(region, district)
+
+num_deaths51 <- ihs5_master %>% 
+  filter(any_member_die_2yrs == "YES") %>% 
+  filter(cause_of_death == "ILLNESS") %>% 
+  count(region, district)
+
+num_deaths51 <- num_deaths51 %>% 
+  rename("deaths" = "n")
+
+num_deaths5 <- num_deaths5 %>% 
+  left_join(num_deaths51, by = "district")
+
+num_deaths5 <- num_deaths5 %>% 
+  select(-c(region.x)) %>% 
+  rename("region" = "region.y") %>% 
+  rename("num_hh" = "n") %>% 
+  mutate("proportion_deaths" = deaths/num_hh)
+
+num_deaths5 <- num_deaths5[,c(3, 1, 2, 4, 5)]
+```
+
+
+Health-related spending summary stats
+```{r}
+#IHS4 - mean of each by region/district
+ihs4_spendsumstats <- ihs4_master %>% 
+  group_by(region, district) %>% 
+  summarise_at(vars(health_consump, drugs_consump, hospitalization_consump,
+                    outpatient_consump), mean)
+
+#IHS5 - mean of each by region/district
+ihs5_spendsumstats <- ihs5_master %>% 
+  group_by(region, district) %>% 
+  summarise_at(vars(health_consump, drugs_consump, hospitalization_consump,
+                    outpatient_consump), mean)
+```
+
