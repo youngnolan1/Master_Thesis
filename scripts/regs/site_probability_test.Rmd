@@ -1,0 +1,381 @@
+---
+title: "Malawi_Site_Probability_Test"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(MASS)
+library(Hmisc)
+library(reshape2)
+library(tidyverse)
+library(readxl)
+library(sf)
+library(readstata13)
+library(MatchIt)
+library(ptinpoly)
+library(dplyr)
+```
+
+```{r}
+#Access Datasets
+HH_Geo_Data           <-    read.dta13("~/BSE/Term 3/Masters Thesis/IHS5/householdgeovariables_ihs5.dta")
+HH_Reg_Data           <-    read.dta13("~/BSE/Term 3/Masters Thesis/IHS5/ihs5_consumption_aggregate.dta")
+HH_F_Data             <-    read.dta13("~/BSE/Term 3/Masters Thesis/IHS5/HH_MOD_F.dta")
+HH_Data               <-    merge(HH_Geo_Data, HH_Reg_Data, by.x = "case_id", by.y = "case_id")
+HH_Data               <-    merge(HH_Data, HH_F_Data, by.x = "case_id", by.y = "case_id")
+Site_Data             <-    read.csv("~/BSE/Term 3/Masters Thesis/site_full.csv")
+#Wind_Data             <-    read_xlsx("~/BSE/Term 3/Masters Thesis/Malawi_Idai_Wind_Data.xlsx")
+Bins_Data             <-    read_xlsx("~/BSE/Term 3/Masters Thesis/Malawi_Bins.xlsx")
+
+```
+
+
+```{r}
+
+#Creating Bins
+Bins <- list()
+for (i in Bins_Data$Bindex){
+  Bin <- list(rbind(
+    c(Bins_Data$Min_Lat[i],Bins_Data$Min_Long[i]),
+    c(Bins_Data$Max_Lat[i],Bins_Data$Min_Long[i]),
+    c(Bins_Data$Max_Lat[i],Bins_Data$Max_Long[i]),
+    c(Bins_Data$Min_Lat[i],Bins_Data$Max_Long[i])))
+  Bins <- append(Bins, Bin)
+}
+
+```
+
+
+```{r}
+
+#Remove NA Lat and Long observations
+#Also remove Non-South Households. Doing so provides the Southern Bins, that can then be used for the probability model
+clean_HH_Data <- HH_Data %>%
+  drop_na(ea_lat_mod) %>%
+  filter(region == "South")
+
+#Check for Households in each Bin
+Bin <- c()
+HH_in_Bin_Lat <- c()
+HH_in_Bin_Long <- c()
+HH_ID <- c()
+
+for(i in Bins_Data$Bindex){
+  #print(i)
+  for(j in 1:length(clean_HH_Data$ea_lat_mod)){
+    #print(j)
+    if (abs(clean_HH_Data$ea_lat_mod[j]) <= abs(Bins_Data$Max_Lat[i]) & abs(clean_HH_Data$ea_lat_mod[j]) <= abs(Bins_Data$Min_Lat[i])){
+      if(abs(clean_HH_Data$ea_lon_mod[j]) <= abs(Bins_Data$Max_Long[i]) & abs(clean_HH_Data$ea_lon_mod[j]) >= abs(Bins_Data$Min_Long[i])){
+        Bin <- rbind(Bin, i)
+        HH_in_Bin_Lat <- rbind(HH_in_Bin_Lat, clean_HH_Data$ea_lat_mod[j])
+        HH_in_Bin_Long <- rbind(HH_in_Bin_Long, clean_HH_Data$ea_lon_mod[j])
+        HH_ID <- rbind(HH_ID, clean_HH_Data$case_id[j])
+      }
+    }
+  }
+}
+HH_List <- data.frame(Bin, HH_in_Bin_Lat, HH_in_Bin_Long, HH_ID)
+#View(HH_List)
+
+
+Bin_List <- as.data.frame(unique(HH_List$Bin))
+colnames(Bin_List) <- c("Bin")
+
+
+```
+
+
+
+```{r}
+
+
+#Check for Sites in Bins
+Bin <- c()
+Site_in_Bin_Lat <- c()
+Site_in_Bin_Long <- c()
+Site_ID <- c()
+
+for(i in Bins_Data$Bindex){
+  #print(paste0("Sub_Bin: ", Sub_Bins_Data$Sub_Bin[i]))
+  for(j in 1:length(Site_Data$lon)){
+    #print(paste0("Site: ", Site_Data$lon[j]))
+    if (abs(Site_Data$lat[j]) <= abs(Bins_Data$Max_Lat[i]) & abs(Site_Data$lat[j]) >= abs(Bins_Data$Min_Lat[i])){
+      if(abs(Site_Data$lon[j]) <= abs(Bins_Data$Max_Long[i]) & abs(Site_Data$lon[j]) >= abs(Bins_Data$Min_Long[i])){
+        Bin <- rbind(Bin, i)
+        Site_in_Bin_Lat <- rbind(Site_in_Bin_Lat, Site_Data$lat[j])
+        Site_in_Bin_Long <- rbind(Site_in_Bin_Long, Site_Data$lon[j])
+        Site_ID <- rbind(Site_ID, Site_Data$site_id[j])
+      }
+    }
+  }
+}
+Site_List <- data.frame(Bin, Site_in_Bin_Lat, Site_in_Bin_Long, Site_ID)
+#View(Site_List)
+
+#No Wind Data in Southern Bins - can't use/can't use for Sub_Bins below 
+
+#Make Sub_Bin Dataset in Excel breaking down Southern Bins containing HH into Sub_Bins
+Sub_Bins_Data         <-    read_xlsx("~/BSE/Term 3/Masters Thesis/Sub_Bins.xlsx")
+
+```
+
+
+
+
+```{r}
+
+#Now make Sub_Bins for Bins in Bin_List
+Sub_Bins <- list()
+
+for (i in 1:length(Sub_Bins_Data$Sub_Bin)){
+  Sub_Bin <- list(rbind(
+    c(Sub_Bins_Data$Sub_Bin_Min_Lat[i],Sub_Bins_Data$Sub_Bin_Min_Lon[i]),
+    c(Sub_Bins_Data$Sub_Bin_Max_Lat[i],Sub_Bins_Data$Sub_Bin_Min_Lon[i]),
+    c(Sub_Bins_Data$Sub_Bin_Max_Lat[i],Sub_Bins_Data$Sub_Bin_Max_Lon[i]),
+    c(Sub_Bins_Data$Sub_Bin_Min_Lat[i],Sub_Bins_Data$Sub_Bin_Max_Lon[i])))
+    Sub_Bins <- append(Sub_Bins, Sub_Bin, after = i)
+}
+
+
+
+```
+
+
+
+
+```{r}
+
+
+#Check for Households in each Sub_Bin
+Sub_Bin <- c()
+HH_in_Sub_Bin_Lat <- c()
+HH_in_Sub_Bin_Long <- c()
+Sub_HH_ID <- c()
+Sub_HH_Precip_Wet_Month <- c()
+Sub_HH_Potential_Wetness <- c()
+Sub_HH_Temp <- c()
+Sub_HH_Electric <- c()
+Sub_HH_Slope <- c()
+Sub_HH_Elevation <- c()
+Sub_HH_Pop_Density <- c()
+Sub_HH_Rural_Intensity <- c()
+Sub_HH_Road_Distance <- c()
+Sub_HH_Ag_Market_Dist <- c()
+Sub_HH_Potable <- c()
+Sub_HH_Toilet <- c()
+
+for(i in 1:length(Sub_Bins_Data$Sub_Bin)){
+  #print(i)
+  for(j in 1:length(clean_HH_Data$ea_lat_mod)){
+    if (abs(clean_HH_Data$ea_lat_mod[j]) <= abs(Sub_Bins_Data$Sub_Bin_Max_Lat[i]) & abs(clean_HH_Data$ea_lat_mod[j]) >= abs(Sub_Bins_Data$Sub_Bin_Min_Lat[i])){
+      if(abs(clean_HH_Data$ea_lon_mod[j]) <= abs(Sub_Bins_Data$Sub_Bin_Max_Lon[i]) & abs(clean_HH_Data$ea_lon_mod[j]) >= abs(Sub_Bins_Data$Sub_Bin_Min_Lon[i])){
+        Sub_Bin <- rbind(Sub_Bin, Sub_Bins_Data$Sub_Bin[i])
+        HH_in_Sub_Bin_Lat <- rbind(HH_in_Sub_Bin_Lat, clean_HH_Data$ea_lat_mod[j])
+        HH_in_Sub_Bin_Long <- rbind(HH_in_Sub_Bin_Long, clean_HH_Data$ea_lon_mod[j])
+        Sub_HH_ID <- rbind(Sub_HH_ID, clean_HH_Data$case_id[j])
+        Sub_HH_Precip_Wet_Month <- rbind(Sub_HH_Precip_Wet_Month, clean_HH_Data$af_bio_13_x[j])
+        Sub_HH_Potential_Wetness <- rbind(Sub_HH_Potential_Wetness, clean_HH_Data$twi_mwi[j])
+        Sub_HH_Temp <- rbind(Sub_HH_Temp, clean_HH_Data$af_bio_8_x[j])
+        Sub_HH_Electric <- rbind(Sub_HH_Electric, clean_HH_Data$hh_f24[j])
+        Sub_HH_Slope <- rbind(Sub_HH_Slope, clean_HH_Data$afmnslp_pct[j])
+        Sub_HH_Elevation <- rbind(Sub_HH_Elevation, clean_HH_Data$srtm_1k[j])
+        Sub_HH_Pop_Density <- rbind(Sub_HH_Pop_Density, clean_HH_Data$popdensity[j])
+        Sub_HH_Rural_Intensity <- rbind(Sub_HH_Rural_Intensity, clean_HH_Data$dist_popcenter[j])
+        Sub_HH_Road_Distance <- rbind(Sub_HH_Road_Distance, clean_HH_Data$dist_road[j])
+        Sub_HH_Ag_Market_Dist <- rbind(Sub_HH_Ag_Market_Dist, clean_HH_Data$dist_agmrkt[j])
+        Sub_HH_Potable <- rbind(Sub_HH_Potable, clean_HH_Data$hh_f36[j])
+        Sub_HH_Toilet <- rbind(Sub_HH_Toilet, clean_HH_Data$hh_f41[j])
+      }
+    }
+  }
+}
+Sub_HH_List <- data.frame(Sub_Bin, 
+                          HH_in_Sub_Bin_Lat, 
+                          HH_in_Sub_Bin_Long, 
+                          Sub_HH_ID, 
+                          Sub_HH_Precip_Wet_Month, 
+                          Sub_HH_Potential_Wetness,
+                          Sub_HH_Temp, 
+                          Sub_HH_Electric, 
+                          Sub_HH_Slope,
+                          Sub_HH_Elevation,
+                          Sub_HH_Pop_Density,
+                          Sub_HH_Rural_Intensity,
+                          Sub_HH_Road_Distance, 
+                          Sub_HH_Ag_Market_Dist,
+                          Sub_HH_Potable,
+                          Sub_HH_Toilet)
+#View(Sub_HH_List)
+
+```
+
+
+
+```{r}
+
+#Check for Sites in each Sub_Bin
+Sub_Bin <- c()
+Site_in_Sub_Bin_Lat <- c()
+Site_in_Sub_Bin_Long <- c()
+Sub_Site_ID <- c()
+
+for(i in 1:length(Sub_Bins_Data$Sub_Bin)){
+  for(j in 1:length(Site_Data$lon)){
+    if (abs(Site_Data$lat[j]) <= abs(Sub_Bins_Data$Sub_Bin_Max_Lat[i]) & abs(Site_Data$lat[j]) >= abs(Sub_Bins_Data$Sub_Bin_Min_Lat[i])){
+      if(abs(Site_Data$lon[j]) <= abs(Sub_Bins_Data$Sub_Bin_Max_Lon[i]) & abs(Site_Data$lon[j]) >= abs(Sub_Bins_Data$Sub_Bin_Min_Lon[i])){
+        Sub_Bin <- rbind(Sub_Bin, Sub_Bins_Data$Sub_Bin[i])
+        Site_in_Sub_Bin_Lat <- rbind(Site_in_Sub_Bin_Lat, Site_Data$lat[j])
+        Site_in_Sub_Bin_Long <- rbind(Site_in_Sub_Bin_Long, Site_Data$lon[j])
+        Sub_Site_ID <- rbind(Sub_Site_ID, Site_Data$site_id[j])
+      }
+    }
+  }
+}
+
+Sub_Site_List <- data.frame(Sub_Bin, Site_in_Sub_Bin_Lat, Site_in_Sub_Bin_Long, Sub_Site_ID)
+#View(Sub_Site_List)
+
+#No Wind_Data in Sub_Bins - can't use.
+
+```
+
+
+```{r}
+
+#Merging the various Dataframes into one that contains all Bins with at least one parameter, but potentially some NA values
+#(eg a Bin with a site and precipitation, but no wind data)
+
+Master_Bin <- merge(Sub_Site_List, Sub_HH_List, by = "Sub_Bin", all.x = TRUE, all.y = TRUE)
+
+Master_Bin <- Master_Bin %>%
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  group_by(Sub_Bin) %>%
+  mutate(Mean_Precip=(mean(Sub_HH_Precip_Wet_Month))) %>%
+  mutate(Mean_Temp=(mean(Sub_HH_Temp))) %>%
+  mutate(Mean_Electric=(mean(Sub_HH_Electric))) %>%
+  mutate(Mean_Potential_Wetness=(mean(Sub_HH_Potential_Wetness)))%>%
+  mutate(Mean_Incline=(mean(Sub_HH_Slope)))%>%
+  mutate(Mean_Elevation=(mean(Sub_HH_Elevation)))%>%
+  mutate(Mean_Pop_Dens=(mean(Sub_HH_Pop_Density)))%>%
+  mutate(Mean_Rural_Intense=(mean(Sub_HH_Rural_Intensity)))%>%
+  mutate(Mean_Dist_Road=(mean(Sub_HH_Road_Distance)))%>%
+  mutate(Mean_Dist_Ag_Mkt=(mean(Sub_HH_Ag_Market_Dist)))%>%
+  mutate(Mean_Potable=(mean(Sub_HH_Potable)))%>%
+  mutate(Mean_Toilet=(mean(Sub_HH_Toilet)))%>%
+  distinct(Sub_Bin, .keep_all=TRUE)
+
+
+#Set Site_ID to 1 if present in Bin, 0 if not
+Master_Bin$Site_Indicator <- matrix(1, length(Master_Bin$Sub_Site_ID))
+for (i in 1:length(Master_Bin$Site_Indicator)) {
+  if (Master_Bin$Sub_Site_ID[i] == 0){
+    Master_Bin$Site_Indicator[i] <- 0
+  }
+}
+#View(Master_Bin)
+
+Clean_Master_Bin <- data.frame(Master_Bin$Sub_Bin, 
+                               Master_Bin$Site_Indicator, 
+                               Master_Bin$Mean_Precip, 
+                               Master_Bin$Mean_Temp, 
+                               Master_Bin$Mean_Electric, 
+                               Master_Bin$Mean_Potential_Wetness,
+                               Master_Bin$Mean_Incline,
+                               Master_Bin$Mean_Elevation,
+                               Master_Bin$Mean_Pop_Dens,
+                               Master_Bin$Mean_Rural_Intense,
+                               Master_Bin$Mean_Dist_Road,
+                               Master_Bin$Mean_Dist_Ag_Mkt,
+                               Master_Bin$Mean_Potable,
+                               Master_Bin$Mean_Toilet)
+
+colnames(Clean_Master_Bin) <- c("Sub_Bin", 
+                                "Site_Indicator",
+                                "Mean_Precip", 
+                                "Mean_Temp", 
+                                "Mean_Electric", 
+                                "Mean_Potential_Wetness",
+                                "Mean_Incline",
+                                "Mean_Elevation",
+                                "Mean_Pop_Dens",
+                                "Mean_Rural_Intense",
+                                "Mean_Dist_Road",
+                                "Mean_Dist_Ag_Mkt",
+                                "Mean_Potable",
+                                "Mean_Toilet")
+View(Clean_Master_Bin)
+
+regression <- lm(Site_Indicator ~ 
+                   Mean_Precip + 
+                   Mean_Temp + 
+                   Mean_Electric + 
+                   Mean_Potential_Wetness +
+                   Mean_Incline +
+                   Mean_Elevation +
+                   Mean_Pop_Dens +
+                   Mean_Rural_Intense +
+                   Mean_Dist_Road +
+                   Mean_Dist_Ag_Mkt +
+                   Mean_Potable +
+                   Mean_Toilet,
+                   data = Clean_Master_Bin)
+summary(regression)
+
+myprobit <- glm(Site_Indicator ~ 
+                   Mean_Precip + 
+                   Mean_Temp + 
+                   Mean_Electric + 
+                   Mean_Potential_Wetness +
+                   Mean_Incline +
+                   Mean_Elevation +
+                   Mean_Pop_Dens +
+                   Mean_Rural_Intense +
+                   Mean_Dist_Road +
+                   Mean_Dist_Ag_Mkt +
+                   Mean_Potable +
+                   Mean_Toilet, 
+                   data = Clean_Master_Bin)
+summary(myprobit)
+
+
+#Lasso Model - prof recommendation
+
+#install.packages("glmnet")
+library(glmnet)
+y <- Clean_Master_Bin$Site_Indicator
+x <- cbind(Clean_Master_Bin$Mean_Precip, 
+                   Clean_Master_Bin$Mean_Temp, 
+                   Clean_Master_Bin$Mean_Electric,
+                   Clean_Master_Bin$Mean_Potential_Wetness,
+                   Clean_Master_Bin$Mean_Incline,
+                   Clean_Master_Bin$Mean_Elevation,
+                   Clean_Master_Bin$Mean_Pop_Dens,
+                   Clean_Master_Bin$Mean_Rural_Intense,
+                   Clean_Master_Bin$Mean_Dist_Road,
+                   Clean_Master_Bin$Mean_Dist_Ag_Mkt,
+                   Clean_Master_Bin$Mean_Potable,
+                   Clean_Master_Bin$Mean_Toilet)
+cv_model <- cv.glmnet(x, y, alpha = 1)
+plot(cv_model)
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(best_model)
+
+
+```
+
+
+
+
+
+
